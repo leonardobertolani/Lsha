@@ -48,7 +48,7 @@ class SystemUnderLearning:
         # IDENTIFY CHANGE PTS IN DRIVER OVERLAY
         prev = [sig.points[0].value for sig in driver]
         for ts in [pt.timestamp for pt in driver[0].points]:
-            curr = [val_dic[ts] for val_dic in values]
+            curr = [val_dic[ts] for val_dic in values]# if ts in val_dic.keys()]
             if self.is_chg_pt(curr, prev):
                 chg_pts.append(ChangePoint(ts))
             prev = curr

@@ -1,13 +1,9 @@
 import configparser
 import os
-from typing import List, Set, Tuple
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-import pandas as pd
-import datetime
+from typing import List
 
 from sha_learning.case_studies.gr3n.sul_functions import label_event, parse_data, get_absorption_param, is_chg_pt
-from sha_learning.case_studies.gr3n.sul_functions import plot_assorbimento_eventi, plot_coppia_eventi
+from sha_learning.case_studies.gr3n.sul_functions import plot_assorbimento_eventi, plot_coppia_eventi, plot_diff_eventi
 from sha_learning.domain.lshafeatures import Event, NormalDistribution, Trace
 from sha_learning.domain.sigfeatures import Timestamp, SampledSignal
 from sha_learning.domain.sulfeatures import SystemUnderLearning, RealValuedVar, FlowCondition
@@ -38,10 +34,16 @@ assorbimento = RealValuedVar([on_fc], [], model2distr, label='a')
 
 # define events
 events: List[Event] = []
-events.append(Event('', 'cp high', 'cp1'))
-events.append(Event('', 'cp low', 'cp2'))
+events.append(Event('', 'cp high', 'cp1'))      # 0
+events.append(Event('', 'cp low', 'cp2'))       # 1
+events.append(Event('', 'df med-low', 'df1'))   # 2
+events.append(Event('', 'df low-med', 'df2'))   # 3
+events.append(Event('', 'df med-high', 'df3'))  # 4
+events.append(Event('', 'df high-med', 'df4'))  # 5
+events.append(Event('', 'df low-high', 'df5'))  # 6
+events.append(Event('', 'df high-low', 'df6'))  # 7
 
-DRIVER_SIG = ['cp']
+DRIVER_SIG = ['cp', 'df']
 DEFAULT_M = 0
 DEFAULT_DISTR = 0
 
@@ -70,7 +72,8 @@ if test:
                                       trace.t[-1].to_secs() - trace.t[0].to_secs(), len(trace)))
 
         plot_assorbimento_eventi(trace)
-        plot_coppia_eventi(trace)
+        #plot_coppia_eventi(trace)
+        plot_diff_eventi(trace)
 
     # test segment identification
     test_trace = Trace(gr3n_cs.traces[0][:1])
