@@ -27,8 +27,10 @@ DATA_INIZIO_FILTRO = config['GR3N']['DATA_INIZIO_FILTRO']
 DATA_FINE_FILTRO = config['GR3N']['DATA_FINE_FILTRO']
 
 def is_chg_pt(curr, prev):
-    return  (curr[0] > COPPIA_MIDPOINT and prev[0] < COPPIA_MIDPOINT) or \
-            (curr[0] < COPPIA_MIDPOINT and prev[0] > COPPIA_MIDPOINT)
+    return  (curr[0] > COPPIA_MIDPOINT and prev[0] < COPPIA_MIDPOINT and curr[1] > prev[1]) or \
+            (curr[0] > COPPIA_MIDPOINT and prev[0] < COPPIA_MIDPOINT and curr[1] < prev[1]) or \
+            (curr[0] < COPPIA_MIDPOINT and prev[0] > COPPIA_MIDPOINT and curr[1] > prev[1]) or \
+            (curr[0] < COPPIA_MIDPOINT and prev[0] > COPPIA_MIDPOINT and curr[1] < prev[1])
 
 def label_event(events: List[Event], signals: List[SampledSignal], t: Timestamp):
     coppia_sig = signals[1]
@@ -44,11 +46,28 @@ def label_event(events: List[Event], signals: List[SampledSignal], t: Timestamp)
     else:
         prev_coppia = curr_coppia
 
+    cicloattivo_sig = signals[2]
+    cicloattivo = {pt.timestamp: (i, pt.value) for i, pt in enumerate(cicloattivo_sig.points)}
+
+    curr_cicloattivo_index, curr_cicloattivo = cicloattivo[t]
+    if curr_cicloattivo_index > 0:
+        try:
+            prev_index = [tup[0] for tup in cicloattivo.values() if tup[0] < curr_cicloattivo_index][-1]
+            prev_cicloattivo = cicloattivo_sig.points[prev_index].value
+        except IndexError:
+            prev_cicloattivo = None
+    else:
+        prev_cicloattivo = curr_cicloattivo
+
     identified_event = None
-    if (curr_coppia > COPPIA_MIDPOINT and prev_coppia < COPPIA_MIDPOINT):
+    if (curr_coppia > COPPIA_MIDPOINT and prev_coppia < COPPIA_MIDPOINT and curr_cicloattivo > prev_cicloattivo):
         identified_event = events[0]
-    elif (curr_coppia < COPPIA_MIDPOINT and prev_coppia > COPPIA_MIDPOINT):
+    elif (curr_coppia > COPPIA_MIDPOINT and prev_coppia < COPPIA_MIDPOINT and curr_cicloattivo < prev_cicloattivo):
         identified_event = events[1]
+    elif (curr_coppia < COPPIA_MIDPOINT and prev_coppia > COPPIA_MIDPOINT and curr_cicloattivo > prev_cicloattivo):
+        identified_event = events[2]
+    elif (curr_coppia < COPPIA_MIDPOINT and prev_coppia > COPPIA_MIDPOINT and curr_cicloattivo < prev_cicloattivo):
+        identified_event = events[3]
 
     if identified_event is None:
         LOGGER.error("No event was identified at time {}.".format(t))
@@ -61,15 +80,16 @@ def parse_ts(ts: datetime):
 
 
 def parse_data(path: str):
-    differenziale: SampledSignal = SampledSignal([], label='d')
+    cicloattivo: SampledSignal = SampledSignal([], label='ca')
     assorbimento: SampledSignal = SampledSignal([], label='a')
     coppia: SampledSignal = SampledSignal([], label='cp')
 
     dd_real = pd.read_csv(path)
 
-    dd_differenziale = dd_real[dd_real['DataObjectField'] == 'Differenziale']
-    dd_differenziale.loc[:, 'time'] = pd.to_datetime(dd_differenziale['time'], format='%Y-%m-%d %H:%M:%S.%f')
-    dd_differenziale.sort_values(by='time')
+    # First, convert to datetime so that I can easily sort them
+    dd_cicloattivo = dd_real[dd_real['DataObjectField'] == 'CicloAttivo']
+    dd_cicloattivo.loc[:, 'time'] = pd.to_datetime(dd_cicloattivo['time'], format='%Y-%m-%d %H:%M:%S.%f')
+    dd_cicloattivo.sort_values(by='time')
 
     dd_assorbimento = dd_real[dd_real['DataObjectField'] == 'Assorbimento']
     dd_assorbimento.loc[:, 'time'] = pd.to_datetime(dd_assorbimento['time'], format='%Y-%m-%d %H:%M:%S.%f')
@@ -79,18 +99,12 @@ def parse_data(path: str):
     dd_coppia.loc[:, 'time'] = pd.to_datetime(dd_coppia['time'], format='%Y-%m-%d %H:%M:%S.%f')
     dd_coppia.sort_values(by='time')
 
-    #data_inizio_filtraggio = pd.to_datetime(DATA_INIZIO_FILTRO)
-    #data_fine_filtraggio = pd.to_datetime(DATA_FINE_FILTRO)
-
-    #dd_differenziale_dettaglio = dd_differenziale[(dd_differenziale['time'] >= data_inizio_filtraggio) & (dd_differenziale['time'] <= data_fine_filtraggio)]
-    #dd_assorbimento_dettaglio = dd_assorbimento[(dd_assorbimento['time'] >= data_inizio_filtraggio) & (dd_assorbimento['time'] <= data_fine_filtraggio)]
-    #dd_coppia_dettaglio = dd_coppia[(dd_coppia['time'] >= data_inizio_filtraggio) & (dd_coppia['time'] <= data_fine_filtraggio)]
-
-    differenziale.points.extend([SignalPoint(parse_ts(record['time']), record['Value']) for index, record in dd_differenziale.iterrows()])
+    # Then, back to Timestamp so that doesn't make conflicts with the code
+    cicloattivo.points.extend([SignalPoint(parse_ts(record['time']), record['Value']) for index, record in dd_cicloattivo.iterrows()])
     assorbimento.points.extend([SignalPoint(parse_ts(record['time']), record['Value']) for index, record in dd_assorbimento.iterrows()])
     coppia.points.extend([SignalPoint(parse_ts(record['time']), record['Value']) for index, record in dd_coppia.iterrows()])
 
-    return [assorbimento, coppia, differenziale]
+    return [assorbimento, coppia, cicloattivo]
 
 
 def get_absorption_param(segment: List[SignalPoint], flow: FlowCondition):

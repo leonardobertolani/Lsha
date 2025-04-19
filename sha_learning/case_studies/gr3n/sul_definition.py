@@ -36,10 +36,12 @@ assorbimento = RealValuedVar([on_fc], [], model2distr, label='a')
 
 # define events
 events: List[Event] = []
-events.append(Event('', 'cp high', 'cp1'))
-events.append(Event('', 'cp low', 'cp2'))
+events.append(Event('', 'cp high, ca high', 'cpH_caH'))
+events.append(Event('', 'cp high, ca low', 'cpH_caL'))
+events.append(Event('', 'cp low, ca high', 'cpL_caH'))
+events.append(Event('', 'cp low, ca low', 'cpL_caL'))
 
-DRIVER_SIG = ['cp']
+DRIVER_SIG = ['cp', 'ca']
 DEFAULT_M = 0
 DEFAULT_DISTR = 0
 
@@ -47,7 +49,7 @@ args = {'name': 'assorbimento', 'driver': DRIVER_SIG, 'default_m': DEFAULT_M, 'd
 
 gr3n_cs = SystemUnderLearning([assorbimento], events, parse_data, label_event, get_absorption_param, is_chg_pt, args=args)
 
-test = False
+test = True
 if test:
     TEACHER = Teacher(gr3n_cs)
 

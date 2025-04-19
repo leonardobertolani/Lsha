@@ -48,10 +48,20 @@ class SystemUnderLearning:
         # IDENTIFY CHANGE PTS IN DRIVER OVERLAY
         prev = [sig.points[0].value for sig in driver]
         for ts in [pt.timestamp for pt in driver[0].points]:
+            # Il problema qui è che scorre seguendo i timestamp della coppia che sono a "grana grossa", quindi è possibile
+            # che tra prev e curr (a cui corrispondono sicuramente valori di coppia e cicloattivo) ci sia anche un altro
+            # timestamp di ciclo attivo. questo è un problema perchè nella funzione label_event cerca invece l'ultima
+            # occorrenza appena prima di curr, e se si verifica la situazione suddetta (un timestamp di cicloattivo tra due
+            # di coppia e cicloattivo a grana grossa) allora lui farà riferimento al timestamp sbagliato (leggerà come
+            # prev quello solo di cicloattivo e non il prev di entrambi che aveva trovato qui). Risoluzione: così come hai
+            # inserito i timestamp della coppia in cicloattivo, devi inserire i timestamp di cicloattivo anche in coppia.
             curr = [val_dic[ts] for val_dic in values]
+
             if self.is_chg_pt(curr, prev):
                 chg_pts.append(ChangePoint(ts))
+
             prev = curr
+
 
         return chg_pts
 
